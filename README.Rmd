@@ -1,0 +1,146 @@
+---
+title: "Hemorragia SubAracnoidea - PAASH"
+author: "Raul RC"
+output:
+  pdf_document: default
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warnings=FALSE)
+```
+
+```{r libs, echo=FALSE, message=FALSE, warning=FALSE,}
+# Libraries
+library(pander)
+library(knitr)
+library(kableExtra)
+library(scales)
+# set working directory
+git="/home/bic/rcruces/Desktop/rcruces-Yeatman/git_here"
+setwd(paste0(git,"/hsa_paash"))
+
+# Functions
+group.test <- function(X,Group){
+  print(kruskal.test(X~Group))
+  print(pairwise.wilcox.test(X, Group, p.adj="bonferroni", exact=F))
+  aovFA <- aov(X~Group)
+  print(TukeyHSD(aovFA))
+}
+```
+
+# Prognosis on Admission of Aneurysmal Subarachnoid Hemorrhage (PAASH)  
+PAASH scale is based on the Glasgow Comma Scale (GCS) assigned at the time of patient admission.  
+```{r gcs, echo=FALSE, warning=FALSE, message=FALSE}
+df <- data.frame(PAASH=c("I","II","III","IV","V"), GCS=c("15","11-14","8-10","4-7","3"))
+pander(df)
+```
+
+
+# Clinical table by PAASH
+```{r cli, echo=FALSE, warning=FALSE, message=FALSE}
+hsa.cli <- read.csv("data/PAASH_clinica.csv")
+colnames(hsa.cli)[1] <- " "
+pander(hsa.cli)
+```
+
+# Aneurysm location:  age and gender difference in aneurysm distribution  
+
+```{r loc, echo=FALSE, warning=FALSE, message=FALSE}
+hsa.loc <- read.csv("data/PAASH_localizacion.csv")
+pander(hsa.loc[,c("X","ACA","ACM","ACP","basilar","carotida","otra")])
+```
+
+# Percentage of patients with poor outcome  
+The percentage was calculated based on the PAASH score.  
+  
+## Glassgow Outcome Scale (GOS)  
+**GOS 1:** Death  
+**GOS 2:** Persistent vegetative state  
+**GOS 3:** Severe disaability  
+**GOS 4:** Moderate disability  
+**GOS 5:** Good recovery  
+  
+## Outcome based on GOS  
+> **Poor:** GOS 1-3  
+> **Fair:** GOS 4-5
+
+There is a significant difference in the percentage of poor outcome between the original study and our cohort for PAASH-I. In our hospital patients with PAASH I have better outcome.
+
+```{r out, echo=FALSE, warning=FALSE, message=FALSE, fig.width=10}
+hsa.out <- read.csv("data/PAASH-outcome.csv")
+# Comparison between proportions X-squared
+for (i in 1:5) {
+ res <- prop.test(x = c(hsa.out$poor[i],hsa.out$poor[i+5]), n=c(hsa.out$N.sum[i],hsa.out$N.sum[i+5])) 
+ print(paste0("PAASH-",i,", X-squared: ",round(res$statistic,2),", p-val: ",round(res$p.value,2)))
+}
+
+
+# Percentage of poor outcome
+per <- cbind(hsa.out[,10]/hsa.out$N.sum*100, hsa.out[,10]/hsa.out$N.total*100)
+par(mfrow=c(1,2))
+plot(1:5, per[1:5,1], type="b", col=NA, axes = FALSE, ylab="Percentage of poor outcome", xlab="PAAHS", main="% per PAAHS")
+axis(1,at=1:5,labels = hsa.out$paash[1:5])
+axis(2,at=seq(0,100,20),labels = seq(0,100,20),las=2)
+points(1:5, per[6:10,1],cex=2,pch=18,col="gray65"); lines(1:5, per[6:10,1],lwd=2,col="gray65")
+points(1:5, per[11:15,1],cex=1.5,pch=17,col="gray65"); lines(1:5, per[11:15,1],lwd=2,col="gray65",lty=2)
+points(1:5, per[1:5,1],cex=1.5,pch=19); lines(1:5, per[1:5,1],lwd=2)
+
+# plot(1:5, per[1:5,2], type="b", col=NA, axes = FALSE, ylab="Percentage of poor outcome", xlab="PAAHS", main="% of total sample size",ylim = c(0,25))
+# axis(1,at=1:5,labels = hsa.out$paash[1:5])
+# axis(2,at=seq(0,100,20),labels = seq(0,100,20),las=2)
+# points(1:5, per[6:10,2],cex=2,pch=18,col="gray65"); lines(1:5, per[6:10,2],lwd=2,col="gray65")
+# points(1:5, per[11:15,2],cex=1.5,pch=17,col="gray65"); lines(1:5, per[11:15,2],lwd=2,col="gray65",lty=2)
+# points(1:5, per[1:5,2],cex=1.5,pch=19); lines(1:5, per[1:5,2],lwd=2)
+
+Col=c("lightgoldenrod1", "sandybrown", "indianred2", "red3", "brown4")
+plot(per[1:5,1], per[6:10,1], bty='n', xlab = 'Mexican Population', ylab = 'Original study', axes = FALSE, xlim=c(0,100), ylim=c(0,100),col=NA,main="Percentage of poor outcome")
+axis(1); axis(2,las=2)
+abline(h=seq(0,100,20),v=seq(0,100,20),col="gray85")
+abline(lty=2, col='red3', lwd=1.5, coef = c(0,1))
+points(per[1:5,1], per[6:10,1],col="gray70",bg=Col,pch=21,cex=3)
+```
+
+# PAASH - GOS relation by cohort  
+```{r gos, echo=FALSE, warning=FALSE, message=FALSE}
+hsa <- read.csv("data/HSA_database.csv")
+col.paash <- matrix(rep(alpha(Col,0.5),5),nrow = 5,ncol = 5)
+col.gos <- matrix(rep(alpha(rev(Col),0.5),5),nrow = 5,ncol = 5,byrow = T)
+# Distribution by total N
+# tab <- prop.table(table(paste0("paash.",hsa$paash), paste0("gos.",hsa$GOS)))*100
+# plot(1:5,1:5,col=NA, ylab="GOS", xlab="PAASH", axes = FALSE,xlim=c(0.5,5.5),ylim=c(0.5,5.5), main="Distribution by Total N=135")
+# axis(1,at=1:5)
+# axis(2,at=1:5,las=2)
+# for (i in 1:5) {for (j in 1:5) {
+#   if (tab[i,j] != 0) {
+#     C=tab[i,j]/10
+#     D="gray45"
+#   } else {C=0; D="white"}
+#   points(i,j, cex=C, col=col.paash[i,j],pch=19); points(i,j, cex=C, col=col.gos[i,j],pch=19)
+#   text(i,j+0.45,paste0(round(tab[i,j],1),"%"),col = D)
+# }}
+# Distribution by PAASH
+tab.1 <- table(paste0("paash.",hsa$paash), paste0("gos.",hsa$GOS))
+tab.1 <- tab.1/rowSums(tab.1)*100
+plot(1:5,1:5,col=NA, ylab="GOS", xlab="PAASH", axes = FALSE,xlim=c(0.5,5.5),ylim=c(0.5,5.5), main="Distribution by PAASH")
+axis(1,at=1:5)
+axis(2,at=1:5,las=2)
+for (i in 1:5) {for (j in 1:5) {
+  if (tab.1[i,j] != 0) {
+    C=tab.1[i,j]/10
+    D="gray45"
+  } else {C=0; D="white"}
+  points(i,j, cex=C, col=col.paash[i,j],pch=19); points(i,j, cex=C, col=col.gos[i,j],pch=19)
+  text(i-0.5,j,paste0(round(tab.1[i,j],1),"%"),col = D)
+}}
+```
+
+For each PAASH, no significant differences where found for sex or age
+```{r dat, echo=FALSE, warning=FALSE, message=FALSE, size = 'scriptsize'}
+
+# Gender & age
+group.test(as.numeric(hsa$sex), as.factor(hsa$paash))
+group.test(hsa$age, as.factor(hsa$paash))
+
+# Linear discriminant Analisis for variable selection
+```
